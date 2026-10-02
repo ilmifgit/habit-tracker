@@ -11,6 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug secrets
+        run: |
+          echo "PROD_HOST length: ${#PROD_HOST}"
+          echo "PROD_USER length: ${#PROD_USER}"
+          echo "PROD_SSH_KEY length: ${#PROD_SSH_KEY}"
+          echo "PROD_HOST first 10: ${PROD_HOST:0:10}"
+          echo "PROD_USER: $PROD_USER"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -31,14 +43,20 @@ jobs:
       - name: Add VPS to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$PROD_HOST" >> ~/.ssh/known_hosts
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
 
       - name: Copy jar to VPS
         run: |
-          scp build/libs/ktfinal-all.jar \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/root/ktfinal-deploy/build/libs/ktfinal-all.jar
+          scp build/libs/ktfinal-all.jar "$PROD_USER@$PROD_HOST:/root/ktfinal-deploy/build/libs/ktfinal-all.jar"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
 
       - name: Restart container
         run: |
-          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
-            "cd /root/ktfinal-deploy && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build && sleep 15 && curl -f http://localhost:8080/swagger/openapi.json > /dev/null && echo 'Deploy OK'"
+          ssh "$PROD_USER@$PROD_HOST" "cd /root/ktfinal-deploy && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build && sleep 15 && curl -f http://localhost:8080/swagger/openapi.json > /dev/null && echo 'Deploy OK'"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
