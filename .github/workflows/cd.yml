@@ -1,0 +1,49 @@
+name: CD
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Build fat-jar
+        run: |
+          chmod +x gradlew
+          ./gradlew buildFatJar -x test --no-daemon
+
+      - name: Copy jar to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "build/libs/ktfinal-all.jar"
+          target: "/root/ktfinal-deploy/build/libs/"
+          overwrite: true
+
+      - name: Restart container
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/ktfinal-deploy
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d --build
+            sleep 15
+            curl -f http://localhost:8080/swagger/openapi.json > /dev/null
+            echo "Deploy OK: ${{ github.ref_name }}"
