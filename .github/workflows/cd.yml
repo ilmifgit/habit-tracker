@@ -23,27 +23,21 @@ jobs:
           chmod +x gradlew
           ./gradlew buildFatJar -x test --no-daemon
 
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Copy jar to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          source: "build/libs/ktfinal-all.jar"
-          target: "/root/ktfinal-deploy/build/libs/"
-          overwrite: true
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            build/libs/ktfinal-all.jar \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/root/ktfinal-deploy/build/libs/ktfinal-all.jar
 
       - name: Restart container
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            set -e
-            cd /root/ktfinal-deploy
-            docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d --build
-            sleep 15
-            curl -f http://localhost:8080/swagger/openapi.json > /dev/null
-            echo "Deploy OK: ${{ github.ref_name }}"
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /root/ktfinal-deploy && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build && sleep 15 && curl -f http://localhost:8080/swagger/openapi.json > /dev/null && echo Deploy OK"
