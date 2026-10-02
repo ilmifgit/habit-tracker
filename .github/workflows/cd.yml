@@ -11,18 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug secrets
-        run: |
-          echo "PROD_HOST length: ${#PROD_HOST}"
-          echo "PROD_USER length: ${#PROD_USER}"
-          echo "PROD_SSH_KEY length: ${#PROD_SSH_KEY}"
-          echo "PROD_HOST first 10: ${PROD_HOST:0:10}"
-          echo "PROD_USER: $PROD_USER"
-        env:
-          PROD_HOST: ${{ secrets.PROD_HOST }}
-          PROD_USER: ${{ secrets.PROD_USER }}
-          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
