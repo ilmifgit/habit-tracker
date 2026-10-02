@@ -23,21 +23,22 @@ jobs:
           chmod +x gradlew
           ./gradlew buildFatJar -x test --no-daemon
 
-      - name: Prepare SSH key
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Add VPS to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.PROD_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
 
       - name: Copy jar to VPS
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            build/libs/ktfinal-all.jar \
+          scp build/libs/ktfinal-all.jar \
             ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/root/ktfinal-deploy/build/libs/ktfinal-all.jar
 
       - name: Restart container
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
-            "cd /root/ktfinal-deploy && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build && sleep 15 && curl -f http://localhost:8080/swagger/openapi.json > /dev/null && echo Deploy OK"
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /root/ktfinal-deploy && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build && sleep 15 && curl -f http://localhost:8080/swagger/openapi.json > /dev/null && echo 'Deploy OK'"
