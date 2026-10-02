@@ -1,0 +1,6 @@
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY build/libs/ktfinal-all.jar app.jar
+COPY src/main/resources/openapi.json openapi.json
+EXPOSE 8080
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-jar", "app.jar"]

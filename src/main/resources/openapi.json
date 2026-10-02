@@ -1,0 +1,159 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Habit Tracker API",
+    "description": "API для трекера привычек с JWT-авторизацией",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://136.234.4.90:8080", "description": "Production VPS" },
+    { "url": "http://localhost:8080", "description": "Local" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "Habit": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "userId": {"type": "integer"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "icon": {"type": "string"},
+          "color": {"type": "string"},
+          "archived": {"type": "boolean"}
+        }
+      },
+      "NewHabit": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "icon": {"type": "string"},
+          "color": {"type": "string"}
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {"type": "string"},
+          "password": {"type": "string"},
+          "role": {"type": "string", "enum": ["user", "admin"]}
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {"type": "string"},
+          "password": {"type": "string"}
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "token": {"type": "string"},
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "integer"},
+              "username": {"type": "string"},
+              "role": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Регистрация",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } } },
+        "responses": {
+          "201": { "description": "Создан" },
+          "400": { "description": "Bad request" },
+          "409": { "description": "Уже существует" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Логин → JWT",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenResponse" } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Текущий пользователь",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/habits": {
+      "get": {
+        "tags": ["habits"],
+        "summary": "Список привычек",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "required": false }
+        ],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Habit" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["habits"],
+        "summary": "Создать привычку",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NewHabit" } } } },
+        "responses": { "201": { "description": "Создано" } }
+      }
+    },
+    "/habits/{id}": {
+      "get": {
+        "tags": ["habits"],
+        "summary": "Получить привычку",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "tags": ["habits"],
+        "summary": "Удалить привычку",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "204": { "description": "Удалено" } }
+      }
+    },
+    "/habits/{id}/check-in": {
+      "post": {
+        "tags": ["habits"],
+        "summary": "Отметить сегодня",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "201": { "description": "Отмечено" }, "409": { "description": "Уже отмечено" } }
+      }
+    },
+    "/habits/{id}/stats": {
+      "get": {
+        "tags": ["habits"],
+        "summary": "Статистика",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}
